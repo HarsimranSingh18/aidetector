@@ -1,0 +1,165 @@
+/* Reset and base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  height: 100%;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #121212;
+  color: #eee;
+  overflow: hidden;
+  border: 3px solid #000; /* subtle black border around website */
+}
+
+#app {
+  position: relative;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: row;
+  background: #121212;
+}
+
+/* Camera container - full screen */
+#camera-container {
+  position: relative;
+  flex: 1;
+  border-right: 2px solid #222;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+video#video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 2px solid #000;
+  filter: brightness(1.1);
+}
+
+/* Canvas for highlighting */
+#canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Detection list corner box */
+#detected-list {
+  position: absolute;
+  bottom: 15px;
+  left: 15px;
+  background: rgba(0,0,0,0.6);
+  padding: 8px 15px;
+  border-radius: 10px;
+  max-width: 300px;
+  font-size: 14px;
+  color: #fff;
+  box-shadow: 0 0 10px #000;
+  z-index: 20;
+}
+
+/* Each detected item in list */
+.detected-item {
+  margin-bottom: 4px;
+}
+
+/* AI Overview container (hidden by default) */
+#overview-container {
+  width: 40vw;
+  background: #1e1e1e;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  position: relative;
+  overflow-y: auto;
+  box-shadow: -5px 0 15px rgba(0,0,0,0.9);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+/* Show overview */
+#overview-container.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Close button */
+#overview-close {
+  position: absolute;
+  top: 12px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+#overview-close:hover {
+  color: #fff;
+}
+
+/* Overview title */
+#overview-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+/* Overview text */
+#overview-text {
+  font-size: 16px;
+  line-height: 1.5;
+  color: #ccc;
+}
+
+/* Image container inside overview */
+#overview-image {
+  max-width: 100%;
+  max-height: 200px;
+  margin-bottom: 15px;
+  border-radius: 10px;
+  border: 2px solid #555;
+  object-fit: contain;
+  box-shadow: 0 0 10px rgba(255,255,255,0.2);
+  transition: transform 0.5s ease;
+}
+
+/* Highlight polygon style */
+.highlight-polygon {
+  position: absolute;
+  border: 3px solid white;
+  border-radius: 8px;
+  pointer-events: none;
+  animation: popIn 0.5s ease forwards;
+}
+
+/* Pop-in animation */
+@keyframes popIn {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Smooth transitions for container changes */
+#app, #camera-container, #overview-container {
+  transition: all 0.6s ease;
+}
