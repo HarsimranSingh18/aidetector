@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Object Detector - Polished</title>
+<style>
+  /* Reset and base */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0; padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #121212;
+    color: #eee;
+    overflow-x: hidden;
+  }
+  #app {
+    display: flex;
+    height: 100vh;
+    border: 3px solid #000;
+    background: #181818;
+  }
+  /* Camera container */
+  #camera-container {
+    position: relative;
+    flex: 1.7;
+    border-right: 3px solid black;
+    overflow: hidden;
+    background: black;
+  }
+  video#camera {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transform: scale(1.1); /* Zoom out slightly */
+    filter: brightness(1.05);
+  }
+  /* Highlight box */
+  #highlight-box {
+    position: absolute;
+    border: 3px solid white;
+    border-radius: 12px;
+    pointer-events: none;
+    box-shadow: 0 0 15px 3px rgba(255, 255, 255, 0.7);
+    transition: all 0.5s ease;
+  }
+  #highlight-percentage {
+    position: absolute;
+    top: -22px;
+    left: 0;
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    padding: 2px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    pointer-events: none;
+    user-select: none;
+  }
+  /* Right panel */
+  #panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 12px;
+    background: #222;
+    overflow-y: auto;
+  }
+  #panel h2 {
+    font-weight: 700;
+    margin-bottom: 6px;
+    font-size: 1.3rem;
+    color: #f0f0f0;
+    border-bottom: 1px solid #555;
+    padding-bottom: 4px;
+  }
+  .panel-card {
+    background: #1a1a1a;
+    border-radius: 12px;
+    box-shadow: 0 0 15px 2px rgba(255,255,255,0.1);
+    display: flex;
+    padding: 10px;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    animation: fadeInUp 0.6s ease forwards;
+  }
+  @keyframes fadeInUp {
+    0% {opacity: 0; transform: translateY(15px);}
+    100% {opacity: 1; transform: translateY(0);}
+  }
+  .card-image {
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
+    object-fit: cover;
+    box-shadow: 0 0 8px 1px white;
+    flex-shrink: 0;
+  }
+  .card-text {
+    flex: 1;
+  }
+  .card-text strong {
+    font-size: 1.2rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ddd;
+  }
+  /* Tooltip container */
+  .tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: help;
+  }
+  /* Tooltip text */
+  .tooltip .tooltiptext {
+    visibility: hidden;
+    width: 260px;
+    background-color: #222;
+    color: #ddd;
+    text-align: left;
+    border-radius: 8px;
+    padding: 12px;
+    position: absolute;
+    z-index: 10;
+    bottom: 110%;
+    left: 50%;
+    margin-left: -130px;
+    box-shadow: 0 0 10px 1px #000;
+    font-size: 0.85rem;
+    line-height: 1.3;
+  }
+  /* Show tooltip text on hover */
+  .tooltip:hover .tooltiptext {
+    visibility: visible;
+  }
+  .tooltip .wiki-link {
+    margin-top: 8px;
+    display: inline-block;
+    color: #4ea1f7;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  .tooltip .wiki-link:hover {
+    text-decoration: underline;
+  }
+  /* Close button */
+  .close-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: #bbb;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: color 0.3s ease;
+  }
+  .close-btn:hover {
+    color: white;
+  }
+  /* Bottom-left stacked list box */
+  #stacked-list {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    max-width: 280px;
+    background: rgba(20,20,20,0.85);
+    border-radius: 10px;
+    box-shadow: 0 0 10px 2px #111;
+    padding: 10px;
+    font-size: 0.9rem;
+    user-select: none;
+  }
+  #stacked-list h3 {
+    margin: 0 0 6px 0;
+    font-weight: 700;
+    color: #eee;
+    font-size: 1.1rem;
+  }
+  #stacked-list ul {
+    list-style: none;
+    padding-left: 12px;
+    margin: 0;
+    max-height: 90px;
+    overflow-y: auto;
+  }
+  #stacked-list ul li {
+    color: #ccc;
+    margin-bottom: 4px;
+    white-space: nowrap;
+  }
+  #stacked-list .close-btn {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    color: #bbb;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="camera-container">
+    <video id="camera" autoplay muted playsinline></video>
+    <div id="highlight-box" style="display:none;">
+      <div id="highlight-percentage"></div>
+    </div>
+    <div id="stacked-list">
+      <h3>Recent Detections</h3>
+      <button class="close-btn" id="clear-list" title="Clear list">×</button>
+      <ul id="stacked-items"></ul>
+    </div>
+  </div>
+  <div id="panel">
+    <h2>Detected Objects</h2>
+    <!-- Cards will be inserted here -->
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.7.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+<script>
+(async () => {
+  const video = document.getElementById('camera');
+  const highlightBox = document.getElementById('highlight-box');
+  const highlightPercent = document.getElementById('highlight-percentage');
+  const panel = document.getElementById('panel');
+  const stackedList = document.getElementById('stacked-items');
+  const clearListBtn = document.getElementById('clear-list');
+
+  // Exclude these labels (including "person" for no AI overview)
+  const EXCLUDE = ['remote', 'cup', 'chair', 'donut', 'person', 'hat'];
+
+  // Limit panel items
+  const MAX_PANEL_ITEMS = 4;
+
+  // Keep track of current panel items by label
+  let panelItems = new Map();
+
+  // Keep recent detected names for stacked list
+  let recentStacked = [];
+
+  // Setup webcam
+  async function setupCamera() {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' }, audio: false
+    });
+    video.srcObject = stream;
+    return new Promise(resolve => {
+      video.onloadedmetadata = () => {
+        video.play();
+        resolve();
+      };
+    });
+  }
+
+  // Load model
+  const model = await cocoSsd.load();
+
+  // Helper: get Wikipedia URL for term
+  function getWikiUrl(term) {
+    return `https://en.wikipedia.org/wiki/${encodeURIComponent(term)}`;
+  }
+
+  // Create tooltip content
+  async function createTooltipContent(label) {
+    try {
+      const apiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(label)}`;
+      const response = await fetch(apiUrl);
+      if (!response.ok) return 'No description available.';
+      const data = await response.json();
+      if (data.extract) {
+        return `<div>${data.extract}</div>
+          <a href="${getWikiUrl(label)}" target="_blank" class="wiki-link">Read more on Wikipedia</a>`;
+      }
+      return 'No description available.';
+    } catch {
+      return 'No description available.';
+    }
+  }
+
+  // Add object card to panel
+  async function addPanelItem(label, bbox, score) {
+    if (panelItems.has(label)) return; // Already added
+
+    if (panelItems.size >= MAX_PANEL_ITEMS) {
+      // Remove oldest to keep max 4
+      const oldestKey = panelItems.keys().next().value;
+      removePanelItem(oldestKey);
+    }
+
+    // Crop image from video according to bbox
+    const [x, y, width, height] = bbox;
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+
+    // Create a temporary canvas to crop image
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    ctx.drawImage(
+      video,
+      x, y, width, height,
+      0, 0, width, height
+    );
+
+    const imgURL = canvas.toDataURL();
+
+    // Create panel card element
+    const card = document.createElement('div');
+    card.className = 'panel-card';
+    card.id = `panel-item-${label}`;
+
+    const img = document.createElement('img');
+    img.className = 'card-image';
+    img.src = imgURL;
+    img.alt = label;
+
+    const textDiv = document.createElement('div');
+    textDiv.className = 'card-text';
+
+    const strong = document.createElement('strong');
+    strong.textContent = `This is a ${label}`;
+
+    // Tooltip wrapper
+    const tooltipSpan = document.createElement('span');
+    tooltipSpan.className = 'tooltip';
+
+    // "?" icon
+    const questionMark = document.createElement('span');
+    questionMark.textContent = ' ?';
+    questionMark.style.color = '#4ea1f7';
+    questionMark.style.fontWeight = '700';
+    questionMark.style.cursor = 'help';
+    questionMark.style.userSelect = 'none';
+    questionMark.style.marginLeft = '6px';
+
+    // Tooltip text container
+    const tooltipText = document.createElement('span');
+    tooltipText.className = 'tooltiptext';
+    tooltipText.innerHTML = 'Loading description...';
+
+    tooltipSpan.appendChild(questionMark);
+    tooltipSpan.appendChild(tooltipText);
+    strong.appendChild(tooltipSpan);
+
+    textDiv.appendChild(strong);
+
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'close-btn';
+    closeBtn.textContent = '×';
+    closeBtn.title = `Remove ${label}`;
+    closeBtn.addEventListener('click', () => removePanelItem(label));
+
+    card.appendChild(img);
+    card.appendChild(textDiv);
+    card.appendChild(closeBtn);
+
+    panel.appendChild(card);
+    panelItems.set(label, card);
+
+    // Animate stacking by re-appending panel items in order of insertion
+    const keys = Array.from(panelItems.keys());
+    keys.forEach(key => panel.appendChild(panelItems.get(key)));
+
+    // Fill tooltip description async
+    tooltipText.innerHTML = await createTooltipContent(label);
+
+    // Update stacked list on bottom-left
+    addToStackedList(label);
+  }
+
+  // Remove panel item
+  function removePanelItem(label) {
+    const card = panelItems.get(label);
+    if (card) {
+      panel.removeChild(card);
+      panelItems.delete(label);
+      removeFromStackedList(label);
+    }
+  }
+
+  // Add to stacked list (bottom-left)
+  function addToStackedList(label) {
+    if (!recentStacked.includes(label)) {
+      recentStacked.unshift(label);
+      if (recentStacked.length > MAX_PANEL_ITEMS) {
+        recentStacked.pop();
+      }
+      renderStackedList();
+    }
+  }
+
+  // Remove from stacked list
+  function removeFromStackedList(label) {
+    recentStacked = recentStacked.filter(item => item !== label);
+    renderStackedList();
+  }
+
+  // Render stacked list UI
+  function renderStackedList() {
+    stackedList.innerHTML = '';
+    recentStacked.forEach(label => {
+      const li = document.createElement('li');
+      li.textContent = label;
+      stackedList.appendChild(li);
+    });
+  }
+
+  // Clear stacked list button
+  clearListBtn.onclick = () => {
+    recentStacked = [];
+    renderStackedList();
+  };
+
+  // Update highlight box position & size
+  function updateHighlightBox(bbox) {
+    if (!bbox) {
+      highlightBox.style.display = 'none';
+      return;
+    }
+    const [x, y, width, height] = bbox;
+
+    // Video size and scaling
+    const videoWidth = video.clientWidth;
+    const videoHeight = video.clientHeight;
+    const scaleX = videoWidth / video.videoWidth;
+    const scaleY = videoHeight / video.videoHeight;
+
+    highlightBox.style.left = `${x * scaleX}px`;
+    highlightBox.style.top = `${y * scaleY}px`;
+    highlightBox.style.width = `${width * scaleX}px`;
+    highlightBox.style.height = `${height * scaleY}px`;
+    highlightBox.style.display = 'block';
+  }
+
+  // Main loop
+  async function detectLoop() {
+    if (video.readyState < 2) {
+      requestAnimationFrame(detectLoop);
+      return;
+    }
+    const predictions = await model.detect(video);
+
+    // Filter predictions: exclude humans, hats, remotes etc
+    const filtered = predictions.filter(p =>
+      p.score > 0.60 &&
+      !EXCLUDE.includes(p.class)
+    );
+
+    if (filtered.length === 0) {
+      updateHighlightBox(null);
+    } else {
+      // Sort by highest score
+      filtered.sort((a,b) => b.score - a.score);
+      const best = filtered[0];
+      updateHighlightBox(best.bbox);
+      highlightPercent.textContent = `${Math.round(best.score * 100)}%`;
+
+      // Add item to panel if new
+      await addPanelItem(best.class, best.bbox, best.score);
+    }
+
+    requestAnimationFrame(detectLoop);
+  }
+
+  await setupCamera();
+  detectLoop();
+
+})();
+</script>
+</body>
+</html>
